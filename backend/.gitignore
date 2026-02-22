@@ -1,0 +1,22 @@
+# Backend-specific ignores
+
+# Compiled output
+dist/
+*.js.map
+
+# Environment
+.env
+
+# Logs
+logs/
+*.log
+
+# Temporary clone dirs created by scanner
+tmp/
+temp/
+
+# Dependencies
+node_modules/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
