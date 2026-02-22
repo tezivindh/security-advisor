@@ -124,6 +124,10 @@ async function bootstrap(): Promise<void> {
   await connectDB();
   getRedisClient(); // Warm up Redis connection
 
+  // 🔥 Start queue processor here
+  const { startWorker } = await import('./modules/queue/worker');
+  await startWorker();
+
   const server = app.listen(config.port, () => {
     logger.info(`🚀 SecOps API running on port ${config.port} [${config.nodeEnv}]`);
   });

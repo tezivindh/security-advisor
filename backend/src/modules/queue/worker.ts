@@ -9,7 +9,7 @@ import { config } from '../../config';
 
 const CONCURRENCY = config.limits.maxConcurrentScansPerTeam;
 
-async function startWorker(): Promise<void> {
+export async function startWorker(): Promise<void> {
   await connectDB();
 
   logger.info(`[Worker] Starting scan worker with concurrency: ${CONCURRENCY}`);

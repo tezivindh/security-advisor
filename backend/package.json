@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "start:both": "RUN_WORKER=true node dist/index.js",
     "start:worker": "node dist/modules/queue/worker.js",
     "worker": "ts-node-dev --respawn --transpile-only src/modules/queue/worker.ts",
     "lint": "eslint src --ext .ts"
