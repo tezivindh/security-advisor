@@ -39,9 +39,23 @@ app.use(
   })
 );
 
+const allowedOrigins = [
+  config.frontendUrl,
+  'https://security-advisor.vercel.app',
+  /^https:\/\/security-advisor.*\.vercel\.app$/,
+  'http://localhost:3000',
+];
+
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, Render health checks)
+      if (!origin) return callback(null, true);
+      const allowed = allowedOrigins.some((o) =>
+        o instanceof RegExp ? o.test(origin) : o === origin
+      );
+      callback(allowed ? null : new Error(`CORS: origin ${origin} not allowed`), allowed);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
