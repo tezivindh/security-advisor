@@ -3,7 +3,13 @@ import { decrypt } from '../../utils/encryption';
 import { IUser } from '../../models';
 
 export const getOctokitForUser = (user: IUser): Octokit => {
+  if (!user.encryptedAccessToken) {
+    throw new Error('GitHub access token not available. Ensure the user is fetched with +encryptedAccessToken.');
+  }
   const token = decrypt(user.encryptedAccessToken);
+  if (!token) {
+    throw new Error('Failed to decrypt GitHub access token.');
+  }
   return new Octokit({ auth: token });
 };
 

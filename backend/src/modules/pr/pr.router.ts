@@ -4,7 +4,7 @@ import { requireAuth, AuthRequest } from '../../middleware/auth.middleware';
 import { PRReview, Repository, User } from '../../models';
 import { runRuleEngine } from '../scanner/rule-engine';
 import { analyzeVulnerabilityBatch } from '../ai/groq.service';
-import { postPRComment } from '../github/github.service';
+import { postPRComment, getPRDiff } from '../github/github.service';
 import { config } from '../../config';
 import { logger } from '../../utils/logger';
 
@@ -40,7 +40,18 @@ router.post('/webhook', async (req: Request, res: Response) => {
   try {
     // Verify webhook signature
     const signature = req.headers['x-hub-signature-256'] as string;
-    if (config.github.webhookSecret && signature) {
+    if (!config.github.webhookSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('GITHUB_WEBHOOK_SECRET is not set — refusing webhook in production');
+        res.status(500).json({ error: 'Webhook secret not configured' });
+        return;
+      }
+      logger.warn('GITHUB_WEBHOOK_SECRET is not set — skipping signature check (dev only)');
+    } else {
+      if (!signature) {
+        res.status(401).json({ error: 'Missing webhook signature' });
+        return;
+      }
       const expected = `sha256=${crypto
         .createHmac('sha256', config.github.webhookSecret)
         .update(JSON.stringify(req.body))
@@ -95,8 +106,9 @@ router.post('/webhook', async (req: Request, res: Response) => {
 });
 
 async function processPRReview(repo: any, user: any, pr: any, ghRepo: any): Promise<void> {
-  // We'd fetch diff here - simplified implementation
-  const diffContent = `// PR diff for #${pr.number}\n// File: src/example.ts\n+const query = "SELECT * FROM users WHERE id = " + userId;`;
+  const owner = ghRepo.owner?.login || '';
+  const repoName = ghRepo.name;
+  const diffContent = await getPRDiff(user, owner, repoName, pr.number);
 
   const matches = runRuleEngine(`diff:${pr.number}`, diffContent);
 

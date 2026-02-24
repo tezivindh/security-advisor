@@ -202,7 +202,7 @@ export default function DemoPage() {
 
                   {/* Explanation */}
                   <div className="space-y-1">
-                    <div className="text-xs text-white/40 font-medium">What's wrong?</div>
+                    <div className="text-xs text-white/40 font-medium">What&apos;s wrong?</div>
                     <div className="text-sm text-white/70 leading-relaxed bg-white/5 rounded-lg p-3">
                       {result.explanation}
                     </div>

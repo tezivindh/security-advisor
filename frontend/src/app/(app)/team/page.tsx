@@ -223,7 +223,8 @@ export default function TeamPage() {
     if (teams.length > 0 && !selectedTeam) {
       loadTeamDetails(teams[0]);
     }
-  }, [teams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teams, selectedTeam]);
 
   return (
     <>

@@ -43,7 +43,11 @@ export async function startWorker(): Promise<void> {
   });
 }
 
-startWorker().catch((err) => {
-  logger.error('[Worker] Fatal error:', err);
-  process.exit(1);
-});
+// Only auto-start when this file is the entry point (npm run worker),
+// NOT when imported by the main server process.
+if (require.main === module) {
+  startWorker().catch((err) => {
+    logger.error('[Worker] Fatal error:', err);
+    process.exit(1);
+  });
+}

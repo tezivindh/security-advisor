@@ -20,7 +20,7 @@ const FEATURES = [
     icon: Shield,
     title: 'AI-Powered Vulnerability Detection',
     description:
-      'Hybrid rule engine + AST analysis + Groq AI detects SQL injection, hardcoded secrets, SSRF, command injection, and more.',
+      'Regex rule engine + Groq AI detects SQL injection, hardcoded secrets, SSRF, command injection, weak crypto, and more.',
   },
   {
     icon: Zap,
@@ -60,6 +60,7 @@ const OWASP_CATEGORIES = [
   { id: 'A03', label: 'Injection', color: '#ef4444' },
   { id: 'A05', label: 'Security Misconfiguration', color: '#eab308' },
   { id: 'A07', label: 'Auth & Session Failures', color: '#f97316' },
+  { id: 'A08', label: 'Data Integrity Failures', color: '#eab308' },
   { id: 'A10', label: 'SSRF', color: '#ef4444' },
 ];
 
@@ -168,7 +169,7 @@ export default function LandingPage() {
               <span className="text-transparent bg-clip-text bg-linear-to-r from-red-500 to-orange-500">
                 Copilot
               </span>{' '}
-              for JS/TS Repos
+              for Every Repo
             </h1>
 
             <p className="text-lg md:text-xl text-white/50 mb-10 max-w-2xl mx-auto leading-relaxed">
@@ -260,7 +261,7 @@ export default function LandingPage() {
               Everything you need to ship secure code
             </h2>
             <p className="text-white/50 max-w-xl mx-auto">
-              SecOps combines static analysis, AST parsing, and Groq AI into a unified security
+              SecOps combines regex-based static analysis and Groq AI into a unified security
               intelligence platform.
             </p>
           </div>

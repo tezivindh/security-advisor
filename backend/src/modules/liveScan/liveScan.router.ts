@@ -35,15 +35,20 @@ router.post('/scan', requireAuth, scanLimiter, async (req: AuthRequest, res: Res
       return;
     }
 
-    // Block localhost/internal IP scanning
+    // Block localhost/internal IP scanning (SSRF protection)
     const hostname = parsed.hostname;
-    if (
+    const isPrivate =
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname === '::1' ||
+      hostname === '[::1]' ||
       hostname.startsWith('192.168.') ||
       hostname.startsWith('10.') ||
-      hostname.startsWith('172.')
-    ) {
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.local');
+    if (isPrivate) {
       res.status(400).json({ error: 'Internal/private network scanning is not allowed' });
       return;
     }

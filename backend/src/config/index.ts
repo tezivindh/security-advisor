@@ -33,7 +33,7 @@ export const config = {
 
   groq: {
     apiKey: required('GROQ_API_KEY'),
-    model: process.env.GROQ_MODEL || 'llama3-70b-8192',
+    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
     maxTokens: parseInt(process.env.GROQ_MAX_TOKENS || '1024', 10),
   },
 

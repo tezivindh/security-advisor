@@ -76,6 +76,55 @@ router.get('/repository/by-fullname/:owner/:repoName', requireAuth, async (req: 
   }
 });
 
+// Dashboard summary (MUST be before /:scanId to avoid param capture)
+router.get('/dashboard/summary', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(req.userId!);
+
+    const [latestScans, severityCounts, owaspAgg] = await Promise.all([
+      Scan.find({ userId, status: 'completed' })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('repositoryId', 'fullName'),
+
+      Vulnerability.aggregate([
+        { $match: { userId } },
+        { $group: { _id: '$severity', count: { $sum: 1 } } },
+      ]),
+
+      Vulnerability.aggregate([
+        { $match: { userId } },
+        { $group: { _id: '$owaspId', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+    ]);
+
+    const avgScore =
+      latestScans.length > 0
+        ? Math.round(latestScans.reduce((s, sc) => s + sc.securityScore, 0) / latestScans.length)
+        : 100;
+
+    const severityMap = severityCounts.reduce((acc: any, s) => {
+      acc[s._id] = s.count;
+      return acc;
+    }, {});
+
+    res.json({
+      globalScore: avgScore,
+      recentScans: latestScans,
+      severityBreakdown: {
+        critical: severityMap.critical || 0,
+        high: severityMap.high || 0,
+        medium: severityMap.medium || 0,
+        low: severityMap.low || 0,
+      },
+      owaspDistribution: owaspAgg,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get scan status
 router.get('/:scanId', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
@@ -132,55 +181,6 @@ router.get('/:scanId/vulnerabilities', requireAuth, async (req: AuthRequest, res
     const total = await Vulnerability.countDocuments(filter);
 
     res.json({ vulnerabilities: vulns, total });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Dashboard summary
-router.get('/dashboard/summary', requireAuth, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = new mongoose.Types.ObjectId(req.userId!);
-
-    const [latestScans, severityCounts, owaspAgg] = await Promise.all([
-      Scan.find({ userId, status: 'completed' })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .populate('repositoryId', 'fullName'),
-
-      Vulnerability.aggregate([
-        { $match: { userId } },
-        { $group: { _id: '$severity', count: { $sum: 1 } } },
-      ]),
-
-      Vulnerability.aggregate([
-        { $match: { userId } },
-        { $group: { _id: '$owaspId', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]),
-    ]);
-
-    const avgScore =
-      latestScans.length > 0
-        ? Math.round(latestScans.reduce((s, sc) => s + sc.securityScore, 0) / latestScans.length)
-        : 100;
-
-    const severityMap = severityCounts.reduce((acc: any, s) => {
-      acc[s._id] = s.count;
-      return acc;
-    }, {});
-
-    res.json({
-      globalScore: avgScore,
-      recentScans: latestScans,
-      severityBreakdown: {
-        critical: severityMap.critical || 0,
-        high: severityMap.high || 0,
-        medium: severityMap.medium || 0,
-        low: severityMap.low || 0,
-      },
-      owaspDistribution: owaspAgg,
-    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

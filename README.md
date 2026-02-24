@@ -24,7 +24,7 @@ A full-stack SaaS platform that continuously audits GitHub repositories for secu
 | Feature | Description |
 |---|---|
 | **GitHub OAuth Login** | Authenticate with GitHub; encrypted OAuth token stored per user |
-| **Repository Scanner** | Clone → rule engine (20+ rules) → Groq AI enrichment → security score |
+| **Repository Scanner** | Clone → regex rule engine (11 rules) → Groq AI enrichment → security score |
 | **Live Deployment Scan** | Passive HTTP checks: HTTPS, security headers, cookies, CORS, exposed paths, server leakage |
 | **PR Automation** | GitHub webhook triggers AI security review on every opened/updated pull request |
 | **Security Dashboard** | Global score gauge, severity breakdown, OWASP pie chart, 30-day trend graph |
@@ -66,10 +66,10 @@ A full-stack SaaS platform that continuously audits GitHub repositories for secu
 ### Scan Pipeline (Worker)
 
 1. **Clone** — `simple-git` shallow clone (`--depth 1`) of target branch into temp dir
-2. **Index** — Walk all files with 30+ supported extensions; skip `node_modules`, `.git`, build dirs
-3. **Rule Engine** — 20+ regex-based security rules (SQL injection, XSS, hardcoded secrets, missing auth middleware, IDOR, SSRF, weak crypto, command injection, prototype pollution, CORS wildcards, etc.)
+2. **Index** — Walk all files with 30 supported extensions (JS/TS, Python, Java, Kotlin, C/C++, Go, Rust, Ruby, PHP, C#, Shell, YAML, JSON, TOML, HCL, .env, Terraform); skip `node_modules`, `.git`, build dirs
+3. **Rule Engine** — 11 regex-based security rules covering SQL injection, hardcoded secrets, weak crypto (MD5/SHA1/DES), eval/Function injection, command injection (exec/spawn), CORS wildcard, missing Helmet, missing auth middleware, JWT decode-without-verify, SSRF, and prototype pollution
 4. **AI Enrichment** — Flagged snippets batched into Groq LLaMA for: confirmation, OWASP mapping, impact summary, patch suggestion
-5. **Score** — Weighted deduction: Critical −20, High −10, Medium −5, Low −2
+5. **Score** — Weighted deduction: Critical −25, High −10, Medium −5, Low −2
 6. **Persist** — `Vulnerability` docs + updated `Scan` + `Repository.lastScanScore` + `TrendSnapshot`
 
 ---
@@ -401,7 +401,7 @@ All endpoints prefixed `/api`. Authenticated routes require `Authorization: Bear
 - Worker cleans up cloned temp directories on both success and failure
 - All authenticated routes enforce JWT; 7-day token TTL
 - Rate limiting: 300 req/15 min globally; 5 req/min on live scan
-- SSRF protection in live scan: blocks `localhost`, `127.0.0.1`, RFC-1918 private ranges
+- SSRF protection in live scan: blocks `localhost`, `127.0.0.1`, `0.0.0.0`, `::1`, RFC-1918 private ranges, `.internal` and `.local` TLDs
 - PR webhook verifies HMAC-SHA256 signature before processing
 
 ---
