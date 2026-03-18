@@ -43,31 +43,25 @@ app.use(
 );
 
 const allowedOrigins = [
-  config.frontendUrl,
+  process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:3000',
   'https://secops.tezivindh.online',
   'https://security-advisor.vercel.app',
-  /^https:\/\/security-advisor.*\.vercel\.app$/,
-  'http://localhost:3000',
-];
+].filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (curl, Render health checks)
-      if (!origin) return callback(null, true);
-      const allowed = allowedOrigins.some((o) =>
-        o instanceof RegExp ? o.test(origin) : o === origin
-      );
-      callback(allowed ? null : new Error(`CORS: origin ${origin} not allowed`), allowed);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
-
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(compression());
 // Webhooks need exact raw bytes for HMAC verification.
 app.use('/api/pr/webhook', express.raw({ type: 'application/json', limit: '2mb' }));
