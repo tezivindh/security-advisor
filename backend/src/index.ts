@@ -4,7 +4,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import session from 'express-session';
+import RedisStore from 'connect-redis';
 import rateLimit from 'express-rate-limit';
+import mongoose from 'mongoose';
 
 import { config } from './config';
 import { connectDB } from './config/database';
@@ -25,6 +27,7 @@ import prRouter from './modules/pr/pr.router';
 import liveScanRouter from './modules/liveScan/liveScan.router';
 import teamRouter from './modules/team/team.router';
 import trendsRouter from './modules/trends/trends.router';
+import { scanQueue } from './modules/queue/scan.queue';
 
 const app = express();
 
@@ -41,6 +44,9 @@ app.use(
 
 const allowedOrigins = [
   config.frontendUrl,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://secops.tezivindh.online',
   'https://security-advisor.vercel.app',
   /^https:\/\/security-advisor.*\.vercel\.app$/,
   'http://localhost:3000',
@@ -63,6 +69,8 @@ app.use(
 );
 
 app.use(compression());
+// Webhooks need exact raw bytes for HMAC verification.
+app.use('/api/pr/webhook', express.raw({ type: 'application/json', limit: '2mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -86,12 +94,14 @@ app.use('/api/', globalLimiter);
 // ─── Session (for Passport OAuth) ─────────────────────────
 app.use(
   session({
+    store: new RedisStore({ client: getRedisClient() as any, prefix: 'sess:' }),
     secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       secure: !config.isDev,
+      sameSite: config.isDev ? 'lax' : 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   })
@@ -101,8 +111,27 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ─── Health Check ──────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), env: config.nodeEnv });
+app.get('/health', async (_req, res) => {
+  const mongoState = mongoose.connection.readyState;
+  const mongoOk = mongoState === 1;
+
+  let redisOk = false;
+  try {
+    redisOk = (await getRedisClient().ping()) === 'PONG';
+  } catch {
+    redisOk = false;
+  }
+
+  const healthy = mongoOk && redisOk;
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    env: config.nodeEnv,
+    services: {
+      mongo: mongoOk ? 'up' : `down (state=${mongoState})`,
+      redis: redisOk ? 'up' : 'down',
+    },
+  });
 });
 
 // ─── API Routes ────────────────────────────────────────────
@@ -137,6 +166,8 @@ async function bootstrap(): Promise<void> {
     logger.info(`${signal} received. Shutting down gracefully...`);
     server.close(async () => {
       const { closeRedis } = await import('./config/redis');
+      await scanQueue.close();
+      await mongoose.disconnect();
       await closeRedis();
       process.exit(0);
     });
